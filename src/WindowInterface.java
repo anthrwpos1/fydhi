@@ -1,4 +1,3 @@
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -6,8 +5,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.util.Random;
 
 public class WindowInterface extends JFrame {
@@ -34,6 +31,11 @@ public class WindowInterface extends JFrame {
                 p.move = false;
                 super.mouseExited(e);
             }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                p.launchRocket();
+            }
         });
         p.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
@@ -49,85 +51,50 @@ public class WindowInterface extends JFrame {
 
 class Panel extends JPanel {
     public int mousex, mousey;
+    private Pawn user;
+    private Pawn rocket;
+
     private Random random;
-    private double bobbitX = 400, bobbitY = 300;
-    private double littleAukX = 100, littleAukY = 200;
-    private double littleAukUX = 0, littleAukUY = 0;
-    private int littleAuksCount = 0;
-    private double angle;
+    private int FragCount = 0;
     public double dt;
     public boolean move;
-    private BufferedImage bobbit;
-    private BufferedImage littleAuk;
     private Graphics2D g2d;
+
+    public void launchRocket() {
+        rocket = user.releaseSubspawn(0,0);
+        rocket.xlim = getWidth();
+        rocket.ylim = getHeight();
+        rocket.visible = true;
+        System.out.printf("rocke x=%f, y=%f",rocket.getX(),rocket.getY());
+    }
 
     Panel() {
         random = new Random();
-        File f = new File(".");
-        System.out.println(f.getAbsolutePath());
-        try {
-            bobbit = ImageIO.read(new File("plane.jpg"));
-            littleAuk = ImageIO.read(new File("rocket.jpg"));
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        user = new Pawn("plane.jpg");
+//        rocket = new Pawn("rocket.jpg");
+//        rocket.visible = false;
+        user.addSubpawn(new Pawn("rocket.jpg"), 40, 20, -90);
+        user.addSubpawn(new Pawn("rocket.jpg"), 10, 20, -90);
+        user.spawn(100, 100, 0);
     }
 
     @Override
     public void paint(Graphics g) {
         g.clearRect(0, 0, getWidth(), getHeight());
-        double dx = (double) mousex - bobbitX;
-        double dy = (double) mousey - bobbitY;
-        double mouseDistance = Math.sqrt(dx * dx + dy * dy);
-        angle = Math.atan2(dy, dx) + Math.PI / 2;
-        double speed = 0;
-        if (mouseDistance > 100) speed = 100;
-        else speed = mouseDistance;
-        bobbitX += (dx / mouseDistance * speed * dt);
-        bobbitY += (dy / mouseDistance * speed * dt);
-        dx = littleAukX - bobbitX;
-        dy = littleAukY - bobbitY;
-        double littleAukDistance = Math.sqrt(dx * dx + dy * dy);
-        littleAukUX += (random.nextDouble() - 0.5) * 5000 * dt;
-        littleAukUY += (random.nextDouble() - 0.5) * 5000 * dt;
-        double littleAukSpeed = Math.sqrt(littleAukUY * littleAukUY + littleAukUX * littleAukUX) + 1e-6;
-//        if (littleAukSpeed > 200) {
-            littleAukUX = littleAukUX / littleAukSpeed * 300;
-            littleAukUY = littleAukUY / littleAukSpeed * 300;
-//        }
-        littleAukX = littleAukX + littleAukUX * dt;
-        littleAukY = littleAukY + littleAukUY * dt;
-        if (littleAukX < 0) {
-            littleAukX = 0;
-            littleAukUX = 0;
-        }
-        if (littleAukX > getWidth()) {
-            littleAukX = getWidth();
-            littleAukUX = 0;
-        }
-        if (littleAukY < 0) {
-            littleAukY = 0;
-            littleAukUY = 0;
-        }
-        if (littleAukY > getHeight()) {
-            littleAukY = getHeight();
-            littleAukUY = 0;
-        }
-        if (littleAukDistance < 30) {
-            littleAukX = random.nextDouble() * getWidth();
-            littleAukY = random.nextDouble() * getHeight();
-            littleAukUX = 0;
-            littleAukUY = 0;
-            littleAuksCount++;
-        }
         g2d = (Graphics2D) g;
         renderHints(g2d);
-        renderImage(bobbitX, bobbitY, angle, bobbit);
-        renderImage(littleAukX, littleAukY, Math.atan2(littleAukUY, littleAukUX) + Math.PI / 2, littleAuk);
+        user.moveToTarget((double) mousex, (double) mousey, 30, 300, dt, 1);
+        if (rocket != null) {
+            if (rocket.visible) {
+                rocket.moveDirection(50, user.getAngle(), dt);
+            }
+            rocket.render(new AffineTransform(), g2d);
+            rocket.xlim = getWidth();
+            rocket.ylim = getHeight();
+        }
+        user.render(new AffineTransform(), g2d);
         g2d.drawLine(mousex - 10, mousey, mousex + 10, mousey);
         g2d.drawLine(mousex, mousey - 10, mousex, mousey + 10);
-        g2d.drawString(String.format("Умер раз: %d",littleAuksCount),10,30);
     }
 
     private void renderImage(double shiftX, double shiftY, double angle, BufferedImage bi) {
