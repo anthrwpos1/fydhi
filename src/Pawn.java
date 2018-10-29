@@ -25,7 +25,7 @@ public class Pawn {
     }
 
     public void addSubpawn(Pawn p, double x, double y, double defaultAngle) {
-        p.spawn(x, y, defaultAngle);
+        p.spawn(x + image.getWidth() / 2, y + image.getHeight() / 2, defaultAngle);
         subpawn.add(p);
     }
 
@@ -37,9 +37,11 @@ public class Pawn {
         Pawn pawn = subpawn.get(i);
         subpawn.remove(i);
         double u = Math.sqrt(ux * ux + uy * uy);
-        pawn.x = this.x + pawn.x * ux / u;
-        pawn.y = this.y + pawn.y * uy / u;
-        pawn.defaultAngle = newDefaultAngle;
+        double vecdx = pawn.getX() - image.getWidth() / 2;
+        double vecdy = pawn.getY() - image.getHeight() / 2;
+        double cosa = ux / u;
+        double sina = uy / u;
+        pawn.spawn(this.x + ux / u * vecdy - uy / u * vecdx, this.y + uy / u * vecdy + ux / u * vecdx, newDefaultAngle);
         return pawn;
     }
 
@@ -68,11 +70,11 @@ public class Pawn {
         double dy = targetY - y;
         double distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < maxSpeedDistance) {
-            ux = ux + (dx / maxSpeedDistance * maxSpeed - ux) * (1 - inertia * dt);
-            uy = uy + (dy / maxSpeedDistance * maxSpeed - uy) * (1 - inertia * dt);
+            ux = ux + (dx / maxSpeedDistance * maxSpeed - ux) * (1 / inertia * dt);
+            uy = uy + (dy / maxSpeedDistance * maxSpeed - uy) * (1 / inertia * dt);
         } else {
-            ux = ux + (dx / distance * maxSpeed - ux) * (1 - inertia * dt);
-            uy = uy + (dy / distance * maxSpeed - uy) * (1 - inertia * dt);
+            ux = ux + (dx / distance * maxSpeed - ux) * (1 / inertia * dt);
+            uy = uy + (dy / distance * maxSpeed - uy) * (1 / inertia * dt);
         }
         x = x + ux * dt;
         y = y + uy * dt;

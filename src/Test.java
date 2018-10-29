@@ -8,7 +8,7 @@ public class Test {
         System.out.println(System.currentTimeMillis());
         while (true){
             try {
-                Thread.sleep(25);
+                Thread.sleep(1);
                 t=System.currentTimeMillis();
                 double dt = (double) (t-t0) * 1e-3;
                 t0=t;

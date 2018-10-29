@@ -60,22 +60,22 @@ class Panel extends JPanel {
     public boolean move;
     private Graphics2D g2d;
 
+    Panel() {
+        random = new Random();
+        user = new Pawn("plane.png");
+//        rocket = new Pawn("rocket.jpg");
+//        rocket.visible = false;
+        user.addSubpawn(new Pawn("rocket.png"), -15, 0, -90);
+        user.addSubpawn(new Pawn("rocket.png"), 15, 0, -90);
+        user.spawn(100, 100, 0);
+    }
+
     public void launchRocket() {
-        rocket = user.releaseSubspawn(0,0);
+        rocket = user.releaseSubspawn(0, 0);
         rocket.xlim = getWidth();
         rocket.ylim = getHeight();
         rocket.visible = true;
-        System.out.printf("rocke x=%f, y=%f",rocket.getX(),rocket.getY());
-    }
-
-    Panel() {
-        random = new Random();
-        user = new Pawn("plane.jpg");
-//        rocket = new Pawn("rocket.jpg");
-//        rocket.visible = false;
-        user.addSubpawn(new Pawn("rocket.jpg"), 40, 20, -90);
-        user.addSubpawn(new Pawn("rocket.jpg"), 10, 20, -90);
-        user.spawn(100, 100, 0);
+        System.out.printf("rocket x=%f, y=%f\n", rocket.getX() - user.getX(), rocket.getY() - user.getY());
     }
 
     @Override
@@ -83,10 +83,10 @@ class Panel extends JPanel {
         g.clearRect(0, 0, getWidth(), getHeight());
         g2d = (Graphics2D) g;
         renderHints(g2d);
-        user.moveToTarget((double) mousex, (double) mousey, 30, 300, dt, 1);
+        user.moveToTarget((double) mousex, (double) mousey, 100, 300, dt, 1);
         if (rocket != null) {
             if (rocket.visible) {
-                rocket.moveDirection(50, user.getAngle(), dt);
+                rocket.moveDirection(200, user.getAngle(), dt);
             }
             rocket.render(new AffineTransform(), g2d);
             rocket.xlim = getWidth();
