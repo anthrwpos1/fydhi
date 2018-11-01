@@ -17,25 +17,32 @@ class MyGame extends Game {
     private Player player;
     private Projectile rocket;
     private BonusItem ammo;
+    private BonusItem frag;
     private int rockets;
     private Random random;
+    private NPC npc;
 
     public MyGame() {
         super();
         random = new Random();
         openWindow();
-        player = new Player("plane.png");
-        player.addSubpawn(new Projectile("shaverma.png"), -15, 0, -90);
-        player.addSubpawn(new Projectile("shaverma.png"), 15, 0, -90);
+        player = new Player("destroyer.png");
+        player.addSubpawn(new Projectile("rocket.png"), -15, 0, -90);
+        player.addSubpawn(new Projectile("rocket.png"), 15, 0, -90);
         addPawn(player);
         ammo = new BonusItem("shaverma.png");
         ammo.visible = false;
-        rocket = new Projectile("shaverma.png");
         new Thread(this).start();
         while (true) {
             if (random.nextDouble() < 0.01 && !ammo.visible) {
                 spawnPawnAtLocation(ammo, random.nextDouble() * panel.getWidth(), random.nextDouble() * panel.getHeight(), -90);
-                System.out.println("spawned ammo");
+            }
+
+            if (random.nextDouble() < 0.001) {
+                double newx = random.nextDouble() * panel.getWidth();
+                double newy = random.nextDouble() * panel.getHeight();
+                spawnPawnAtLocation(new NPC("plane.png", random), newx, newy, 0);
+                System.out.printf("new npc %f, %f\n",newx,newy);
             }
             panel.repaint();
             try {
@@ -66,7 +73,9 @@ class MyGame extends Game {
             public void mousePressed(MouseEvent e) {
                 if (rockets > 0) {
                     rockets--;
-                    spawnPawnAtLocation(rocket,player.getSubpawnGlobalX(rockets),player.getSubpawnGlobalY(rockets),0);
+                    rocket = new Projectile("rocket.png");
+                    rocket.source = player;
+                    spawnPawnAtLocation(rocket, player.getSubpawnGlobalX(rockets), player.getSubpawnGlobalY(rockets), 0);
                     player.hideSubpawn(rockets);
                 }
                 super.mousePressed(e);
@@ -101,6 +110,9 @@ class MyGame extends Game {
         if (p.getClass() == Player.class) {
             p.addSpeed(nx, ny);
         }
+        if (p.getClass() == NPC.class) {
+            p.addSpeed(nx*10, ny*10);
+        }
     }
 
     @Override
@@ -109,16 +121,18 @@ class MyGame extends Game {
             if (p1.getClass() == Player.class || p2.getClass() == Player.class) {
                 if (rockets < 2 && ammo.visible) {
                     player.appearSubpawn(rockets);
-                    killPawn(ammo);
+                    if (p1.getClass() == BonusItem.class) killPawn(p1);
+                    if (p2.getClass() == BonusItem.class) killPawn(p2);
                     rockets++;
                 }
             }
-        } else if (conv < 0) {
+        } else {
             System.out.println(String.valueOf(conv));
             System.out.println(p1.getClass());
             System.out.println(p2.getClass());
             killPawn(p1);
             killPawn(p2);
+            spawnPawnAtLocation(new BonusItem("shaverma.png"), p1.getX(), p1.getY(), 0);
         }
     }
 }
@@ -138,7 +152,7 @@ class Player extends Pawn {
 
     @Override
     public void move(double dt) {
-        moveToTarget(mouseX, mouseY, 300, 300, dt, 1);
+        moveToTarget(mouseX, mouseY, 500, 300, dt, 0.3);
     }
 }
 
@@ -155,12 +169,30 @@ class Projectile extends Pawn {
 
     @Override
     public void move(double dt) {
-        moveDirection(500, angle, dt);
+        moveDirection(1000, angle, dt);
     }
 }
 
 class BonusItem extends Pawn {
     BonusItem(String imageFile) {
         super(imageFile);
+    }
+}
+
+class NPC extends Pawn {
+    private Random random;
+    private double angle;
+
+    NPC(String imageFile, Random random) {
+        super(imageFile);
+        this.random = random;
+    }
+
+    @Override
+    public void move(double dt) {
+        moveWithSpeed(getUX(), getUY(), dt);
+        addSpeed((random.nextDouble() - 0.5) * 30000 * dt, (random.nextDouble() - 0.5) *30000 * dt);
+        double u = Math.sqrt(getUX() * getUX() + getUY() * getUY()) / 300;
+        addSpeed(getUX() * (1 - u), getUY() * (1 - u));
     }
 }

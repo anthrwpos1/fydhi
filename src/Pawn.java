@@ -13,7 +13,7 @@ public abstract class Pawn {
     private ArrayList<Pawn> subpawn;
     private double defaultAngle;
     public boolean visible = true;
-    public double xlim, ylim;
+    public Pawn source;
 
     Pawn(String imageFile) {
         try {

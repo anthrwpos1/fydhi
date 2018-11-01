@@ -69,8 +69,12 @@ public abstract class Game implements Runnable {
                     double duy = p.getUY() - q.getUY();
                     double dr = Math.sqrt(dx * dx + dy * dy);
                     double size2 = p.getSize() / 2 + q.getSize() / 2;
-                    if (dr < size2 && dr > (size2 / 2))
-                        PawnCollide(p, q, dux * dx + duy * dy);
+                    if (dr < size2) {
+                        if (p.source != q && q.source != p) {
+                            PawnCollide(p, q, dux * dx + duy * dy);
+                        }
+                    } else if (p.source == q) p.source = null;
+                    else if (q.source == p) q.source = null;
                 }
             }
         }
