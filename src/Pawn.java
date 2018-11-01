@@ -6,8 +6,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class Pawn {
+public abstract class Pawn {
     private double x, y, ux, uy;
+    private double boundX, boundY;
     private BufferedImage image;
     private ArrayList<Pawn> subpawn;
     private double defaultAngle;
@@ -22,27 +23,56 @@ public class Pawn {
             System.exit(1);
         }
         subpawn = new ArrayList<>();
+        boundX = image.getWidth();
+        boundY = image.getHeight();
     }
 
-    public void addSubpawn(Pawn p, double x, double y, double defaultAngle) {
+    public Pawn addSubpawn(Pawn p, double x, double y, double defaultAngle) {
         p.spawn(x + image.getWidth() / 2, y + image.getHeight() / 2, defaultAngle);
+        p.visible = false;
         subpawn.add(p);
+        return this;
     }
 
-    public void removeSubspawn(int i) {
+    public void removeSubpawn(int i) {
         subpawn.remove(i);
     }
 
-    public Pawn releaseSubspawn(int i, double newDefaultAngle) {
+    public Pawn releaseSubpawn(int i, double newDefaultAngle) {
+        if (i < subpawn.size()) {
+            Pawn pawn = subpawn.get(i);
+            pawn.visible = false;
+            double u = Math.sqrt(ux * ux + uy * uy);
+            double vecdx = pawn.getX() - image.getWidth() / 2;
+            double vecdy = pawn.getY() - image.getHeight() / 2;
+            pawn.spawn(this.x + ux / u * vecdy - uy / u * vecdx, this.y + uy / u * vecdy + ux / u * vecdx, newDefaultAngle);
+            return pawn;
+        }
+        return null;
+    }
+
+    public double getSubpawnGlobalX(int i){
         Pawn pawn = subpawn.get(i);
-        subpawn.remove(i);
         double u = Math.sqrt(ux * ux + uy * uy);
         double vecdx = pawn.getX() - image.getWidth() / 2;
         double vecdy = pawn.getY() - image.getHeight() / 2;
-        double cosa = ux / u;
-        double sina = uy / u;
-        pawn.spawn(this.x + ux / u * vecdy - uy / u * vecdx, this.y + uy / u * vecdy + ux / u * vecdx, newDefaultAngle);
-        return pawn;
+        return this.x + ux / u * vecdy - uy / u * vecdx;
+    }
+
+    public double getSubpawnGlobalY(int i){
+        Pawn pawn = subpawn.get(i);
+        double u = Math.sqrt(ux * ux + uy * uy);
+        double vecdx = pawn.getX() - image.getWidth() / 2;
+        double vecdy = pawn.getY() - image.getHeight() / 2;
+        return this.y + uy / u * vecdy + ux / u * vecdx;
+    }
+
+    public void appearSubpawn(int i) {
+        subpawn.get(i).visible = true;
+    }
+
+    public void hideSubpawn(int i){
+        subpawn.get(i).visible = false;
     }
 
     public void spawn(double x, double y, double defaultAngle) {
@@ -59,6 +89,18 @@ public class Pawn {
 
     public double getY() {
         return y;
+    }
+
+    public double getUX() {
+        return ux;
+    }
+
+    public double getUY() {
+        return uy;
+    }
+
+    public double getSize() {
+        return Math.sqrt(boundX * boundX + boundY * boundY) / 1.414213562;
     }
 
     public double getAngle() {
@@ -83,7 +125,6 @@ public class Pawn {
     public void moveWithSpeed(double ux, double uy, double dt) {
         x = x + ux * dt;
         y = y + uy * dt;
-        if (x < 0 || x > xlim || y < 0 || y > ylim) visible = false;
     }
 
     public void moveDirection(double u, double angle, double dt) {
@@ -91,9 +132,19 @@ public class Pawn {
         uy = u * Math.sin(angle);
         x = x + ux * dt;
         y = y + uy * dt;
-        if (x < 0 || x > xlim || y < 0 || y > ylim) {
-            visible = false;
-        }
+    }
+
+    public void addSpeed(double ux, double uy) {
+        this.ux += ux;
+        this.uy += uy;
+    }
+
+    public void dragToLocation(double x, double y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public void move(double dt) {
     }
 
     public void render(AffineTransform at, Graphics2D g) {
