@@ -12,8 +12,10 @@ public abstract class Pawn {
     private BufferedImage image;
     private ArrayList<Pawn> subpawn;
     private double defaultAngle;
+    public double orientation;
     public boolean visible = true;
     public Pawn source;
+    private double dt;
 
     Pawn(String imageFile) {
         try {
@@ -51,7 +53,7 @@ public abstract class Pawn {
         return null;
     }
 
-    public double getSubpawnGlobalX(int i){
+    public double getSubpawnGlobalX(int i) {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
         double vecdx = pawn.getX() - image.getWidth() / 2;
@@ -59,7 +61,7 @@ public abstract class Pawn {
         return this.x + ux / u * vecdy - uy / u * vecdx;
     }
 
-    public double getSubpawnGlobalY(int i){
+    public double getSubpawnGlobalY(int i) {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
         double vecdx = pawn.getX() - image.getWidth() / 2;
@@ -71,7 +73,7 @@ public abstract class Pawn {
         subpawn.get(i).visible = true;
     }
 
-    public void hideSubpawn(int i){
+    public void hideSubpawn(int i) {
         subpawn.get(i).visible = false;
     }
 
@@ -107,36 +109,30 @@ public abstract class Pawn {
         return Math.atan2(uy, ux);
     }
 
-    public void moveToTarget(double targetX, double targetY, double maxSpeed, double maxSpeedDistance, double dt, double inertia) {
-        double dx = targetX - x;
-        double dy = targetY - y;
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < maxSpeedDistance) {
-            ux = ux + (dx / maxSpeedDistance * maxSpeed - ux) * (1 / inertia * dt);
-            uy = uy + (dy / maxSpeedDistance * maxSpeed - uy) * (1 / inertia * dt);
-        } else {
-            ux = ux + (dx / distance * maxSpeed - ux) * (1 / inertia * dt);
-            uy = uy + (dy / distance * maxSpeed - uy) * (1 / inertia * dt);
-        }
-        x = x + ux * dt;
-        y = y + uy * dt;
+    public void control(double dt){
+        this.dt = dt;
+        move();
     }
 
-    public void moveWithSpeed(double ux, double uy, double dt) {
-        x = x + ux * dt;
-        y = y + uy * dt;
-    }
-
-    public void moveDirection(double u, double angle, double dt) {
+    public void setDirection(double u, double angle) {
         ux = u * Math.cos(angle);
         uy = u * Math.sin(angle);
-        x = x + ux * dt;
-        y = y + uy * dt;
     }
 
-    public void addSpeed(double ux, double uy) {
-        this.ux += ux;
-        this.uy += uy;
+    public void setSpeed(double ux, double uy) {
+        this.ux = ux;
+        this.uy = uy;
+    }
+
+    public void friction(double sourceUX, double sourceUY, int power, double frictionCoef) {
+        double u = Math.sqrt(ux * ux + uy * uy);
+        ux = ux - ux * Math.pow(u, power - 1) * dt * frictionCoef;
+        uy = uy - uy * Math.pow(u, power - 1) * dt * frictionCoef;
+    }
+
+    public void accelerate(double ax, double ay) {
+        ux = ux + ax * dt;
+        uy = uy + ay * dt;
     }
 
     public void dragToLocation(double x, double y) {
@@ -144,14 +140,15 @@ public abstract class Pawn {
         this.y = y;
     }
 
-    public void move(double dt) {
+    private void move() {
+        x = x + ux * dt;
+        y = y + uy * dt;
     }
 
     public void render(AffineTransform at, Graphics2D g) {
-        double angle = Math.atan2(uy, ux) + Math.PI / 2;
         AffineTransform preserved = new AffineTransform(at);
         preserved.translate(x, y);
-        preserved.rotate(angle + defaultAngle);
+        preserved.rotate(orientation + defaultAngle);
         preserved.translate(-image.getWidth() / 2, -image.getHeight() / 2);
         if (visible) {
             for (int i = 0; i < subpawn.size(); i++) {

@@ -6,6 +6,7 @@ public abstract class Game implements Runnable {
     private ArrayList<Pawn> pawnList;
     private double limitX, limitY;
     private long T0, T;
+    public boolean cont = true;
 
     public Game() {
         T0 = System.nanoTime();
@@ -39,7 +40,7 @@ public abstract class Game implements Runnable {
     }
 
     public void run() {
-        while (true) {
+        while (cont) {
             T = System.nanoTime();
             double dt = (double) (T - T0) * 1e-9;
             if (dt < 0) dt = 0;
@@ -50,7 +51,7 @@ public abstract class Game implements Runnable {
             }
             for (int i = 0; i < pawnList.size(); i++) {
                 Pawn p = pawnList.get(i);
-                p.move(dt);
+                p.control(dt);
                 double size = p.getSize();
                 if (p.getX() < size / 2) {
                     pawnOutOfBounds(p, 1, 0);

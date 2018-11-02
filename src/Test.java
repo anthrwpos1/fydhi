@@ -17,32 +17,38 @@ class MyGame extends Game {
     private Player player;
     private Projectile rocket;
     private BonusItem ammo;
-    private BonusItem frag;
+    private int frag;
     private int rockets;
     private Random random;
     private NPC npc;
+    private double mouseX, mouseY;
 
     public MyGame() {
         super();
         random = new Random();
         openWindow();
         player = new Player("destroyer.png");
-        player.addSubpawn(new Projectile("rocket.png"), -15, 0, -90);
-        player.addSubpawn(new Projectile("rocket.png"), 15, 0, -90);
-        addPawn(player);
+        player.addSubpawn(new Projectile("rocket.png"), -15, 0, 0);
+        player.addSubpawn(new Projectile("rocket.png"), 15, 0, 0);
+        spawnPawnAtLocation(player, 400, 300, 90);
         ammo = new BonusItem("shaverma.png");
         ammo.visible = false;
-        new Thread(this).start();
-        while (true) {
-            if (random.nextDouble() < 0.01 && !ammo.visible) {
+        Thread physics = new Thread(this);
+        physics.start();
+        while (player.isAlive) {
+            if (random.nextDouble() < 0.001 && !ammo.visible) {
                 spawnPawnAtLocation(ammo, random.nextDouble() * panel.getWidth(), random.nextDouble() * panel.getHeight(), -90);
             }
 
             if (random.nextDouble() < 0.001) {
                 double newx = random.nextDouble() * panel.getWidth();
                 double newy = random.nextDouble() * panel.getHeight();
-                spawnPawnAtLocation(new NPC("plane.png", random), newx, newy, 0);
-                System.out.printf("new npc %f, %f\n",newx,newy);
+                spawnPawnAtLocation(new NPC("plane.png", random), newx, newy, 90);
+                System.out.printf("new npc %f, %f\n", newx, newy);
+            }
+            player.setMouse(mouseX, mouseY);
+            if (rocket != null) {
+                rocket.setOrientation(player.getAngle());
             }
             panel.repaint();
             try {
@@ -51,6 +57,9 @@ class MyGame extends Game {
                 e.printStackTrace();
             }
         }
+        cont = false;
+        window.dispose();
+        System.exit(0);
     }
 
     private void openWindow() {
@@ -75,7 +84,8 @@ class MyGame extends Game {
                     rockets--;
                     rocket = new Projectile("rocket.png");
                     rocket.source = player;
-                    spawnPawnAtLocation(rocket, player.getSubpawnGlobalX(rockets), player.getSubpawnGlobalY(rockets), 0);
+                    spawnPawnAtLocation(rocket, player.getSubpawnGlobalX(rockets), player.getSubpawnGlobalY(rockets), 90);
+                    rocket.setSpeed(player.getUX(), player.getUY());
                     player.hideSubpawn(rockets);
                 }
                 super.mousePressed(e);
@@ -84,7 +94,8 @@ class MyGame extends Game {
         panel.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                player.setMouse(e.getX(), e.getY());
+                mouseX = e.getX();
+                mouseY = e.getY();
                 super.mouseMoved(e);
             }
         });
@@ -94,7 +105,7 @@ class MyGame extends Game {
 
     private void render(Graphics2D g2d) {
         renderGame(g2d);
-        if (rocket != null) rocket.setAngle(player.getAngle());
+        g2d.drawString(String.format("Frags: %d",frag),30,30);
     }
 
     private void renderHints(Graphics2D g) {
@@ -104,14 +115,16 @@ class MyGame extends Game {
 
     @Override
     public void pawnOutOfBounds(Pawn p, double nx, double ny) {
+        double bounceX = Math.abs(p.getUX()) * nx + p.getUX() * (1 - Math.abs(nx));
+        double bounceY = Math.abs(p.getUY()) * ny + p.getUY() * (1 - Math.abs(ny));
         if (p.getClass() == Projectile.class) {
             killPawn(p);
         }
         if (p.getClass() == Player.class) {
-            p.addSpeed(nx, ny);
+            p.setSpeed(bounceX, bounceY);
         }
         if (p.getClass() == NPC.class) {
-            p.addSpeed(nx*10, ny*10);
+            p.setSpeed(bounceX, bounceY);
         }
     }
 
@@ -119,7 +132,7 @@ class MyGame extends Game {
     public void PawnCollide(Pawn p1, Pawn p2, double conv) {
         if (p1.getClass() == BonusItem.class || p2.getClass() == BonusItem.class) {
             if (p1.getClass() == Player.class || p2.getClass() == Player.class) {
-                if (rockets < 2 && ammo.visible) {
+                if (rockets < 2) {
                     player.appearSubpawn(rockets);
                     if (p1.getClass() == BonusItem.class) killPawn(p1);
                     if (p2.getClass() == BonusItem.class) killPawn(p2);
@@ -132,6 +145,8 @@ class MyGame extends Game {
             System.out.println(p2.getClass());
             killPawn(p1);
             killPawn(p2);
+            if (p1.getClass() == Projectile.class || p2.getClass() == Projectile.class) frag++;
+            if (p1.getClass() == Player.class || p2.getClass() == Player.class) player.isAlive = false;
             spawnPawnAtLocation(new BonusItem("shaverma.png"), p1.getX(), p1.getY(), 0);
         }
     }
@@ -139,6 +154,8 @@ class MyGame extends Game {
 
 class Player extends Pawn {
     private double mouseX, mouseY;
+    private final double acceleration = 500;
+    public boolean isAlive = true;
 
     Player(String imageFile) {
         super(imageFile);
@@ -148,28 +165,34 @@ class Player extends Pawn {
     public void setMouse(double mouseX, double mouseY) {
         this.mouseX = mouseX;
         this.mouseY = mouseY;
+        orientation = Math.atan2(mouseY - getY(), mouseX - getX());
     }
 
+
     @Override
-    public void move(double dt) {
-        moveToTarget(mouseX, mouseY, 500, 300, dt, 0.3);
+    public void control(double dt) {
+        super.control(dt);
+        accelerate(Math.cos(orientation) * acceleration, Math.sin(orientation) * acceleration);
+        friction(0, 0, 1, 1);
     }
 }
 
 class Projectile extends Pawn {
-    private double angle;
+    private final double acceleration = 1000;
 
     Projectile(String imageFile) {
         super(imageFile);
     }
 
-    public void setAngle(double angle) {
-        this.angle = angle;
+    public void setOrientation(double angle) {
+        this.orientation = angle;
     }
 
     @Override
-    public void move(double dt) {
-        moveDirection(1000, angle, dt);
+    public void control(double dt) {
+        super.control(dt);
+        accelerate(Math.cos(orientation) * acceleration, Math.sin(orientation) * acceleration);
+        friction(0, 0, 1, 1);
     }
 }
 
@@ -181,7 +204,6 @@ class BonusItem extends Pawn {
 
 class NPC extends Pawn {
     private Random random;
-    private double angle;
 
     NPC(String imageFile, Random random) {
         super(imageFile);
@@ -189,10 +211,10 @@ class NPC extends Pawn {
     }
 
     @Override
-    public void move(double dt) {
-        moveWithSpeed(getUX(), getUY(), dt);
-        addSpeed((random.nextDouble() - 0.5) * 30000 * dt, (random.nextDouble() - 0.5) *30000 * dt);
-        double u = Math.sqrt(getUX() * getUX() + getUY() * getUY()) / 300;
-        addSpeed(getUX() * (1 - u), getUY() * (1 - u));
+    public void control(double dt) {
+        super.control(dt);
+        accelerate((random.nextDouble() - 0.5) * 10000, (random.nextDouble() - 0.5) * 10000);
+        orientation = Math.atan2(getUY(), getUX());
+        friction(0, 0, 1, 1);
     }
 }
