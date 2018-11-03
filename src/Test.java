@@ -5,15 +5,15 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.util.Random;
 
-public class Test {
+public class Test {//стартовый класс
     public static void main(String[] args) {
         MyGame g = new MyGame();
-    }
+    }//запускаем игру
 }
 
 class MyGame extends Game {
-    private JFrame window;
-    private JPanel panel;
+    private JFrame window;  //окно
+    private JPanel panel;   //графическая область
     private Player player;
     private Projectile rocket;
     private BonusItem ammo;
@@ -23,70 +23,69 @@ class MyGame extends Game {
     private NPC npc;
     private double mouseX, mouseY;
 
-    public MyGame() {
+    public MyGame() {//конструктор игры. Выполняется первым.
         super();
         random = new Random();
-        openWindow();
-        player = new Player("destroyer.png");
-        player.addSubpawn(new Projectile("rocket.png"), -15, 0, 0);
-        player.addSubpawn(new Projectile("rocket.png"), 15, 0, 0);
+        openWindow();   //создание окна, см. ниже.
+        player = new Player("destroyer.png");   //отсюда всё выполняется после создания окна
+        player.addSubpawn(new Projectile("rocket.png"), -15, 0, 0); //добавляем ракеты
+        player.addSubpawn(new Projectile("rocket.png"), 15, 0, 0);  //под крылья
         spawnPawnAtLocation(player, 400, 300, 90);
-        ammo = new BonusItem("shaverma.png");
+        ammo = new BonusItem("shaverma.png");                                           //загружаем шаверму
         ammo.visible = false;
-        Thread physics = new Thread(this);
-        physics.start();
-        while (player.isAlive) {
-            if (random.nextDouble() < 0.001 && !ammo.visible) {
+        Thread physics = new Thread(this);//запускаем физику отдельным потоком
+        physics.start(); //эта команда исполняет метод run() класса Game, поскольку он implements Runnable
+        while (player.isAlive) {                                                                //цикл интерфейса игры
+            if (random.nextDouble() < 0.001 && !ammo.visible) {     //случайное появление шавермы
                 spawnPawnAtLocation(ammo, random.nextDouble() * panel.getWidth(), random.nextDouble() * panel.getHeight(), -90);
             }
 
-            if (random.nextDouble() < 0.001) {
+            if (random.nextDouble() < 0.001) {                      //случайное появление NPC
                 double newx = random.nextDouble() * panel.getWidth();
                 double newy = random.nextDouble() * panel.getHeight();
                 spawnPawnAtLocation(new NPC("plane.png", random), newx, newy, 90);
-                System.out.printf("new npc %f, %f\n", newx, newy);
             }
-            player.setMouse(mouseX, mouseY);
+            player.setMouse(mouseX, mouseY);                        //передаем координаты курсора
             if (rocket != null) {
-                rocket.setOrientation(player.getAngle());
+                rocket.setOrientation(player.getAngle());           //направляем ракету куда смотрит игрок
             }
-            panel.repaint();
+            panel.repaint();                    //отрисовываем сцену. см. метод paint(Graphics g) в методе openWindow();
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        cont = false;
+        cont = false;                                               //завершение игры
         window.dispose();
         System.exit(0);
     }
 
-    private void openWindow() {
+    private void openWindow() {//Открытие окна
         window = new JFrame("Game");
         window.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         window.setSize(800, 600);
         panel = new JPanel() {
             @Override
             public void paint(Graphics g) {
-                super.paint(g);
-                Graphics2D g2d = (Graphics2D) g;
-                setNewBounds(getWidth(), getHeight());
-                renderHints(g2d);
+                super.paint(g);     //этот метод исполняется при вызове panel.repaint();
+                Graphics2D g2d = (Graphics2D) g;                    //получаем графику
+                setNewBounds(getWidth(), getHeight());              //передаем границы игрового поля
+                renderHints(g2d);                                   //режимы отрисовки
                 g2d.clearRect(0, 0, getWidth(), getHeight());
-                render(g2d);
+                render(g2d);                                        //тут всё рисуем
             }
         };
         panel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (rockets > 0) {
+                if (rockets > 0) {//этот метод исполняется при щелчке мышью в окне
                     rockets--;
-                    rocket = new Projectile("rocket.png");
+                    rocket = new Projectile("rocket.png");  //выстрел ракетой
                     rocket.source = player;
                     spawnPawnAtLocation(rocket, player.getSubpawnGlobalX(rockets), player.getSubpawnGlobalY(rockets), 90);
-                    rocket.setSpeed(player.getUX(), player.getUY());
-                    player.hideSubpawn(rockets);
+                    rocket.setSpeed(player.getUX(), player.getUY());    //ракета появляется со скоростью игрока
+                    player.hideSubpawn(rockets);                      //скрыть одну из ракет под крылом
                 }
                 super.mousePressed(e);
             }
@@ -94,8 +93,8 @@ class MyGame extends Game {
         panel.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                mouseX = e.getX();
-                mouseY = e.getY();
+                mouseX = e.getX();//этот метод исполняется при движении курсором внутри окна
+                mouseY = e.getY();                                      //изменение координат курсора
                 super.mouseMoved(e);
             }
         });
@@ -104,7 +103,7 @@ class MyGame extends Game {
     }
 
     private void render(Graphics2D g2d) {
-        renderGame(g2d);
+        renderGame(g2d);    //рисуем содержимое окна. см. класс Game
         g2d.drawString(String.format("Frags: %d",frag),30,30);
     }
 
@@ -115,13 +114,14 @@ class MyGame extends Game {
 
     @Override
     public void pawnOutOfBounds(Pawn p, double nx, double ny) {
-        double bounceX = Math.abs(p.getUX()) * nx + p.getUX() * (1 - Math.abs(nx));
+        //этот метод исполняется при выходе любого павна за границы экрана.
+        double bounceX = Math.abs(p.getUX()) * nx + p.getUX() * (1 - Math.abs(nx));//вычисляем отскок
         double bounceY = Math.abs(p.getUY()) * ny + p.getUY() * (1 - Math.abs(ny));
         if (p.getClass() == Projectile.class) {
-            killPawn(p);
+            killPawn(p); //ракета уничтожается
         }
         if (p.getClass() == Player.class) {
-            p.setSpeed(bounceX, bounceY);
+            p.setSpeed(bounceX, bounceY);//остальные - отскакивают
         }
         if (p.getClass() == NPC.class) {
             p.setSpeed(bounceX, bounceY);
@@ -130,7 +130,8 @@ class MyGame extends Game {
 
     @Override
     public void PawnCollide(Pawn p1, Pawn p2, double conv) {
-        if (p1.getClass() == BonusItem.class || p2.getClass() == BonusItem.class) {
+        //этот метод исполняется при сближении двух павнов ближе их радиусов.
+        if (p1.getClass() == BonusItem.class || p2.getClass() == BonusItem.class) {//собираем шаверму
             if (p1.getClass() == Player.class || p2.getClass() == Player.class) {
                 if (rockets < 2) {
                     player.appearSubpawn(rockets);
@@ -140,14 +141,11 @@ class MyGame extends Game {
                 }
             }
         } else {
-            System.out.println(String.valueOf(conv));
-            System.out.println(p1.getClass());
-            System.out.println(p2.getClass());
-            killPawn(p1);
+            killPawn(p1);//уничтожаем столкнувшиеся павны
             killPawn(p2);
-            if (p1.getClass() == Projectile.class || p2.getClass() == Projectile.class) frag++;
-            if (p1.getClass() == Player.class || p2.getClass() == Player.class) player.isAlive = false;
-            spawnPawnAtLocation(new BonusItem("shaverma.png"), p1.getX(), p1.getY(), 0);
+            if (p1.getClass() == Projectile.class || p2.getClass() == Projectile.class) frag++;//засчитываем фраг
+            if (p1.getClass() == Player.class || p2.getClass() == Player.class) player.isAlive = false;//game over...
+            spawnPawnAtLocation(new BonusItem("shaverma.png"), p1.getX(), p1.getY(), 0);//на месте столкновения возникает шаверма
         }
     }
 }
@@ -178,7 +176,7 @@ class Player extends Pawn {
 }
 
 class Projectile extends Pawn {
-    private final double acceleration = 1000;
+    private final double acceleration = 3000;
 
     Projectile(String imageFile) {
         super(imageFile);
@@ -192,7 +190,7 @@ class Projectile extends Pawn {
     public void control(double dt) {
         super.control(dt);
         accelerate(Math.cos(orientation) * acceleration, Math.sin(orientation) * acceleration);
-        friction(0, 0, 1, 1);
+        friction(0, 0, 1, 3);
     }
 }
 

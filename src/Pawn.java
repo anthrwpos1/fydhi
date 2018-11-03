@@ -30,7 +30,7 @@ public abstract class Pawn {
     }
 
     public Pawn addSubpawn(Pawn p, double x, double y, double defaultAngle) {
-        p.spawn(x + image.getWidth() / 2, y + image.getHeight() / 2, defaultAngle);
+        p.spawn(x + boundX / 2, y + (double) boundY / 2, defaultAngle);
         p.visible = false;
         subpawn.add(p);
         return this;
@@ -45,8 +45,8 @@ public abstract class Pawn {
             Pawn pawn = subpawn.get(i);
             pawn.visible = false;
             double u = Math.sqrt(ux * ux + uy * uy);
-            double vecdx = pawn.getX() - image.getWidth() / 2;
-            double vecdy = pawn.getY() - image.getHeight() / 2;
+            double vecdx = pawn.getX() - boundX / 2;
+            double vecdy = pawn.getY() - boundY / 2;
             pawn.spawn(this.x + ux / u * vecdy - uy / u * vecdx, this.y + uy / u * vecdy + ux / u * vecdx, newDefaultAngle);
             return pawn;
         }
@@ -56,16 +56,16 @@ public abstract class Pawn {
     public double getSubpawnGlobalX(int i) {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
-        double vecdx = pawn.getX() - image.getWidth() / 2;
-        double vecdy = pawn.getY() - image.getHeight() / 2;
+        double vecdx = pawn.getX() - boundX / 2;
+        double vecdy = pawn.getY() - boundY / 2;
         return this.x + ux / u * vecdy - uy / u * vecdx;
     }
 
     public double getSubpawnGlobalY(int i) {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
-        double vecdx = pawn.getX() - image.getWidth() / 2;
-        double vecdy = pawn.getY() - image.getHeight() / 2;
+        double vecdx = pawn.getX() - boundX / 2;
+        double vecdy = pawn.getY() - boundY / 2;
         return this.y + uy / u * vecdy + ux / u * vecdx;
     }
 
@@ -149,7 +149,7 @@ public abstract class Pawn {
         AffineTransform preserved = new AffineTransform(at);
         preserved.translate(x, y);
         preserved.rotate(orientation + defaultAngle);
-        preserved.translate(-image.getWidth() / 2, -image.getHeight() / 2);
+        preserved.translate(-boundX / 2, -boundY / 2);
         if (visible) {
             for (int i = 0; i < subpawn.size(); i++) {
                 Pawn sub = subpawn.get(i);

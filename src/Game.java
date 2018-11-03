@@ -9,7 +9,6 @@ public abstract class Game implements Runnable {
     public boolean cont = true;
 
     public Game() {
-        T0 = System.nanoTime();
         pawnList = new ArrayList<>();
     }
 
@@ -40,6 +39,7 @@ public abstract class Game implements Runnable {
     }
 
     public void run() {
+        T0 = System.nanoTime();
         while (cont) {
             T = System.nanoTime();
             double dt = (double) (T - T0) * 1e-9;
