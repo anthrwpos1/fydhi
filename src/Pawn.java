@@ -114,7 +114,7 @@ public abstract class Pawn {
         move();
     }
 
-    public void setDirection(double u, double angle) {
+    public void setSpeedInDirection(double u, double angle) {
         ux = u * Math.cos(angle);
         uy = u * Math.sin(angle);
     }

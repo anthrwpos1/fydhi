@@ -9,8 +9,10 @@ public abstract class Game implements Runnable {
     public boolean cont = true;
 
     public Game() {
-        pawnList = new ArrayList<>();
+        init();
     }
+
+    public void init(){pawnList = new ArrayList<>();}
 
     public void setNewBounds(double limitX, double limitY) {
         this.limitX = limitX;
@@ -43,7 +45,7 @@ public abstract class Game implements Runnable {
         while (cont) {
             T = System.nanoTime();
             double dt = (double) (T - T0) * 1e-9;
-            if (dt < 0) dt = 0;
+            if (dt < 0) dt = 1e-9;
             T0 = T;
             try {
                 Thread.sleep(1);
