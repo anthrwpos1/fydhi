@@ -3,6 +3,10 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 public class Test {//стартовый класс
@@ -16,13 +20,14 @@ class MyGame extends Game {
     private JFrame window;  //окно
     private JPanel panel;   //графическая область
     private Player player;
-    private Projectile rocket;
+    private Missile rocket;
     private BonusItem ammo;
     private int frag;
     private int rockets;
     private Random random;
     private NPC npc;
     private double mouseX, mouseY;
+    private double worldX = 0, worldY = -50;
 
     public MyGame() {//конструктор игры. Выполняется первым.
         super();
@@ -36,8 +41,9 @@ class MyGame extends Game {
         rockets = 2;
         init();
         player = new Player("destroyer.png");   //отсюда всё выполняется после создания окна
-        player.addSubpawn(new Projectile("rocket.png"), -15, 0, 0); //добавляем ракеты
-        player.addSubpawn(new Projectile("rocket.png"), 15, 0, 0);  //под крылья
+        player.addSubpawn(new Missile("rocket.png"), -15, 0, 0); //добавляем ракеты
+        player.addSubpawn(new Missile("rocket.png"), 15, 0, 0);  //под крылья
+        player.addSubpawn(new TimedLife(1), 0, 20, 0);
         player.appearSubpawn(0);
         player.appearSubpawn(1);
         spawnPawnAtLocation(player, 400, 300, 90);
@@ -45,7 +51,12 @@ class MyGame extends Game {
         ammo.visible = false;
         Thread physics = new Thread(this);//запускаем физику отдельным потоком
         physics.start(); //эта команда исполняет метод run() класса Game, поскольку он implements Runnable
-        while (player.isAlive) {                                                                //цикл интерфейса игры
+        while (player.isAlive) {//цикл интерфейса игры
+            if (Double.isNaN(player.getX())) {//todo костыль, пересоздающий игрока если его параметры NaN
+                killPawn(player);
+                spawnPawnAtLocation(player, 400, 400, 90);
+                System.out.println("player NaN");
+            }
             if (random.nextDouble() < 0.001 && !ammo.visible) {     //случайное появление шавермы
                 spawnPawnAtLocation(ammo, random.nextDouble() * panel.getWidth(), random.nextDouble() * panel.getHeight(), -90);
             }
@@ -57,7 +68,7 @@ class MyGame extends Game {
             }
             player.setMouse(mouseX, mouseY);                        //передаем координаты курсора
             if (rocket != null) {
-                rocket.setDirection(player.getAngle());           //направляем ракету куда смотрит игрок
+                rocket.setDirection(player.orientation);           //направляем ракету куда смотрит игрок
             }
             panel.repaint();                    //отрисовываем сцену. см. метод paint(Graphics g) в методе openWindow();
             try {
@@ -67,7 +78,7 @@ class MyGame extends Game {
             }
         }
         cont = false;                                               //завершение игры
-        int result = new JOptionPane().showOptionDialog(window, "Game super();", "result", JOptionPane.OK_OPTION, JOptionPane.INFORMATION_MESSAGE, null, new String[]{"Close", "Restart"}, "ok");
+        int result = new JOptionPane().showOptionDialog(window, "player destroyed. Restart?", "result", JOptionPane.OK_OPTION, JOptionPane.INFORMATION_MESSAGE, null, new String[]{"Close", "Restart"}, "ok");
         if (result == 1) {
             cont = true;
             play();
@@ -94,7 +105,7 @@ class MyGame extends Game {
             public void mousePressed(MouseEvent e) {
                 if (rockets > 0) {//этот метод исполняется при щелчке мышью в окне
                     rockets--;
-                    rocket = new Projectile("rocket.png");  //выстрел ракетой
+                    rocket = new Missile("rocket.png");  //выстрел ракетой
                     rocket.source = player;
                     spawnPawnAtLocation(rocket, player.getSubpawnGlobalX(rockets), player.getSubpawnGlobalY(rockets), 90);
                     rocket.orientation = player.orientation;
@@ -117,10 +128,21 @@ class MyGame extends Game {
     }
 
     private void render(Graphics2D g2d) {
+        g2d.setPaint(new GradientPaint(0, 0, new Color(0, 0, 128), 0, panel.getHeight(), new Color(64, 128, 255)));
+        g2d.fillRect(0, 0, panel.getWidth(), panel.getHeight());
         renderGame(g2d);    //рисуем содержимое окна. см. класс Game
+        g2d.setColor(Color.WHITE);
         g2d.drawString(String.format("Frags: %d", frag), 30, 30);
         g2d.drawString(String.format("PlayerCoord: %f/%f", player.getX(), player.getY()), 90, 30);
-        g2d.drawString(String.format("temp: %s", player.temp), 300, 30);
+        TimedLife tl = new TimedLife(player.thrust / player.acceleration) {
+            @Override
+            public void timeOver() {
+                killPawn(this);
+            }
+        };
+        spawnPawnAtLocation(tl, player.getSubpawnGlobalX(2), player.getSubpawnGlobalY(2), 0);
+        g2d.drawString(String.format("dt: %f", player.temp), 300, 30);
+        tl.setSpeed(-player.thrust * Math.cos(player.orientation), -player.thrust * Math.sin(player.orientation));
     }
 
     private void renderHints(Graphics2D g) {
@@ -133,7 +155,7 @@ class MyGame extends Game {
         //этот метод исполняется при выходе любого павна за границы экрана.
         double bounceX = Math.abs(p.getUX()) * nx + p.getUX() * (1 - Math.abs(nx));//вычисляем отскок
         double bounceY = Math.abs(p.getUY()) * ny + p.getUY() * (1 - Math.abs(ny));
-        if (p.getClass() == Projectile.class) {
+        if (p.getClass() == Missile.class) {
             killPawn(p); //ракета уничтожается
         }
         if (p.getClass() == Player.class) {
@@ -157,9 +179,10 @@ class MyGame extends Game {
                 }
             }
         } else {
+            System.out.printf("collide %s, %s\n", String.valueOf(p1.getClass()), String.valueOf(p2.getClass()));
             killPawn(p1);//уничтожаем столкнувшиеся павны
             killPawn(p2);
-            if (p1.getClass() == Projectile.class || p2.getClass() == Projectile.class) frag++;//засчитываем фраг
+            if (p1.getClass() == Missile.class || p2.getClass() == Missile.class) frag++;//засчитываем фраг
             if (p1.getClass() == Player.class || p2.getClass() == Player.class) player.isAlive = false;//game over...
             spawnPawnAtLocation(new BonusItem("shaverma.png"), p1.getX(), p1.getY(), 0);//на месте столкновения возникает шаверма
         }
@@ -168,15 +191,19 @@ class MyGame extends Game {
 
 class Player extends Pawn {
     private double dX, dY;
-    private final double acceleration = 500;
+    public final double acceleration = 500;
     private final double maxThrustDist2 = 40000;
     public boolean isAlive = true;
     private MAVG mavg;
     private Rotator vecToMouse = new Rotator(0);
-    public String temp;
+    public double temp;
+    private BufferedImage image;
+    public double thrust;
 
     Player(String imageFile) {
-        super(imageFile);
+        super();
+        collisionEnable = true;
+        image = useImage(imageFile);
         mavg = new MAVG(2, 0, 0.5, true, new Rotator(0));
     }
 
@@ -189,26 +216,42 @@ class Player extends Pawn {
 
     @Override
     public void control(double dt) {
+        temp = dt;
         super.control(dt);
         mavg.dt = dt;
         mavg.mavg(vecToMouse);
         orientation = ((Rotator) mavg.dnout[0]).angle;
-        temp = String.valueOf(((Rotator) mavg.dnout[0]).angle);
         double dr2 = (dX * dX + dY * dY);
+        Rotator moveDir = new Rotator(Math.atan2(getUY(),getUX()));
+        Rotator attackAngle = moveDir.sub(new Rotator(orientation));
+        double speed = Math.sqrt(getUX()*getUX()+getUY()*getUY());
+        double lift = Math.sin(-attackAngle.angle*2)*speed*3;
+        double liftAngle = moveDir.add(new Rotator(Math.PI/2)).angle;
         double thrust = (dr2 > maxThrustDist2) ? acceleration : acceleration / maxThrustDist2 * dr2;
         accelerate(Math.cos(orientation) * thrust, Math.sin(orientation) * thrust);
+        accelerate(0,300);
+        accelerate(lift*Math.cos(liftAngle),lift*Math.sin(liftAngle));
+        this.thrust = thrust;
         friction(0, 0, 1, 1);
+    }
+
+    @Override
+    public void drawPawn(AffineTransform at, Graphics2D g) {
+        g.drawImage(image, at, null);
     }
 }
 
-class Projectile extends Pawn {
+class Missile extends Pawn {
     private final double acceleration = 3000;
     private double fuel = 1;
     private double angle_intrtia = 10;
     private Rotator direction = new Rotator(0);
+    private BufferedImage image;
 
-    Projectile(String imageFile) {
-        super(imageFile);
+    Missile(String imageFile) {
+        super();
+        collisionEnable = true;
+        image = useImage(imageFile);
     }
 
     public void setDirection(double angle) {
@@ -227,19 +270,36 @@ class Projectile extends Pawn {
         accelerate(0, 300);
         friction(0, 0, 1, 3);
     }
+
+    @Override
+    public void drawPawn(AffineTransform at, Graphics2D g) {
+        g.drawImage(image, at, null);
+    }
 }
 
 class BonusItem extends Pawn {
+    private BufferedImage image;
+
     BonusItem(String imageFile) {
-        super(imageFile);
+        super();
+        collisionEnable = true;
+        image = useImage(imageFile);
+    }
+
+    @Override
+    public void drawPawn(AffineTransform at, Graphics2D g) {
+        g.drawImage(image, at, null);
     }
 }
 
 class NPC extends Pawn {
     private Random random;
+    private BufferedImage image;
 
     NPC(String imageFile, Random random) {
-        super(imageFile);
+        super();
+        collisionEnable = true;
+        image = useImage(imageFile);
         this.random = random;
     }
 
@@ -253,14 +313,63 @@ class NPC extends Pawn {
         orientation = Math.atan2(getUY(), getUX());
         friction(0, 0, 1, 1);
     }
+
+    @Override
+    public void drawPawn(AffineTransform at, Graphics2D g) {
+        g.drawImage(image, at, null);
+    }
+}
+
+class TimedLife extends Pawn {
+    public double lifeTime;
+    private double timeFromExhaust;
+    public double temp;
+
+    TimedLife(double lifeTime) {
+        super();
+        this.lifeTime = lifeTime;
+//        image = useImage("circle.png");
+        boundX = 10;
+        boundY = 10;
+    }
+
+    @Override
+    public void control(double dt) {
+        super.control(dt);
+        friction(0, 0, 1, 1);
+        if ((lifeTime -= dt) < 0) timeOver();
+        timeFromExhaust += dt;
+        temp = dt;
+    }
+
+    public void timeOver() {
+    }
+
+    @Override
+    public void drawPawn(AffineTransform at, Graphics2D g) {
+        g.setColor(colorOfPuffs());
+        Point2D p;
+        p = at.transform(new Point2D.Double(0, 0), null);
+        g.fill(new Ellipse2D.Double(p.getX(), p.getY(), 10, 10));
+//        g.drawImage(image,at,null);
+    }
+
+    private Color colorOfPuffs() {
+        double red = 1;
+        double green = 1 - Math.exp(-timeFromExhaust * 20);
+        double blue = 1 - Math.exp(-timeFromExhaust * 10);
+        double alpha = (lifeTime > 10) ? 1 : Math.sqrt(lifeTime/10);
+        return new Color((int) (red * 255), (int) (green * 255), (int) (blue * 255), (int) (alpha * 255));
+    }
 }
 
 class Rotator implements Fractional {//Арифметика поворотов
     //    public Complex unit;//комплексный вектор ориентации
-    public double angle;
 
+    public double angle;
 //    public double angle() {//угол ориентации
 //        return unit.angle();
+
 //    }
 
     public Rotator(Complex vector) {
@@ -306,4 +415,5 @@ class Rotator implements Fractional {//Арифметика поворотов
         if (x > 1) x = 1;
         return sub(target).mul(x).add(target);
     }
+
 }

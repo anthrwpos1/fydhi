@@ -6,27 +6,32 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public abstract class Pawn {
+public abstract class Pawn implements Cloneable {
     private double x, y, ux, uy;
-    private double boundX, boundY;
-    private BufferedImage image;
+    public double boundX, boundY;
     private ArrayList<Pawn> subpawn;
     private double defaultAngle;
     public double orientation;
     public boolean visible = true;
     public Pawn source;
+    public boolean collisionEnable;
     private double dt;
 
-    Pawn(String imageFile) {
+    public BufferedImage useImage(String imageFile) {
+        BufferedImage image = null;
         try {
             image = ImageIO.read(new File(imageFile));
+            boundX = image.getWidth();
+            boundY = image.getHeight();
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }
+        return image;
+    }
+
+    Pawn() {
         subpawn = new ArrayList<>();
-        boundX = image.getWidth();
-        boundY = image.getHeight();
     }
 
     public Pawn addSubpawn(Pawn p, double x, double y, double defaultAngle) {
@@ -57,16 +62,16 @@ public abstract class Pawn {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
         double vecdx = pawn.getX() - boundX / 2;
-        double vecdy = pawn.getY() - boundY / 2;
-        return this.x + ux / u * vecdy - uy / u * vecdx;
+        double vecdy = -pawn.getY() + boundY / 2;
+        return this.x + Math.cos(orientation) * vecdy - Math.sin(orientation) * vecdx;
     }
 
     public double getSubpawnGlobalY(int i) {
         Pawn pawn = subpawn.get(i);
         double u = Math.sqrt(ux * ux + uy * uy);
         double vecdx = pawn.getX() - boundX / 2;
-        double vecdy = pawn.getY() - boundY / 2;
-        return this.y + uy / u * vecdy + ux / u * vecdx;
+        double vecdy = -pawn.getY() + boundY / 2;
+        return this.y + Math.sin(orientation) * vecdy + Math.cos(orientation) * vecdx;
     }
 
     public void appearSubpawn(int i) {
@@ -105,11 +110,7 @@ public abstract class Pawn {
         return Math.sqrt(boundX * boundX + boundY * boundY) / 1.414213562;
     }
 
-    public double getAngle() {
-        return Math.atan2(uy, ux);
-    }
-
-    public void control(double dt){
+    public void control(double dt) {
         this.dt = dt;
         move();
     }
@@ -155,7 +156,10 @@ public abstract class Pawn {
                 Pawn sub = subpawn.get(i);
                 sub.render(preserved, g);
             }
-            g.drawImage(image, preserved, null);
+            drawPawn(preserved, g);
         }
+    }
+
+    public void drawPawn(AffineTransform at, Graphics2D g) {
     }
 }

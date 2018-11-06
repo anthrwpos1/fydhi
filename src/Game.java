@@ -12,7 +12,9 @@ public abstract class Game implements Runnable {
         init();
     }
 
-    public void init(){pawnList = new ArrayList<>();}
+    public void init() {
+        pawnList = new ArrayList<>();
+    }
 
     public void setNewBounds(double limitX, double limitY) {
         this.limitX = limitX;
@@ -66,18 +68,25 @@ public abstract class Game implements Runnable {
                 }
                 for (int j = i + 1; j < pawnList.size(); j++) {
                     Pawn q = pawnList.get(j);
-                    double dx = p.getX() - q.getX();
-                    double dy = p.getY() - q.getY();
-                    double dux = p.getUX() - q.getUX();
-                    double duy = p.getUY() - q.getUY();
-                    double dr = Math.sqrt(dx * dx + dy * dy);
-                    double size2 = p.getSize() / 2 + q.getSize() / 2;
-                    if (dr < size2) {
-                        if (p.source != q && q.source != p) {
-                            PawnCollide(p, q, dux * dx + duy * dy);
-                        }
-                    } else if (p.source == q) p.source = null;
-                    else if (q.source == p) q.source = null;
+                    try {//todo в этом цикле куда-то пропадают павны
+                        double dx = p.getX() - q.getX();
+                        double dy = p.getY() - q.getY();
+                        double dux = p.getUX() - q.getUX();
+                        double duy = p.getUY() - q.getUY();
+                        double dr = Math.sqrt(dx * dx + dy * dy);
+                        double size2 = p.getSize() / 2 + q.getSize() / 2;
+                        if (dr < size2) {
+                            if (p.source != q && q.source != p && p.collisionEnable && q.collisionEnable) {
+                                PawnCollide(p, q, dux * dx + duy * dy);
+                            }
+                        } else if (p.source == q) p.source = null;
+                        else if (q.source == p) q.source = null;
+                    } catch (java.lang.NullPointerException e) {
+                        System.out.printf("pawns %d, %d\n", i, j);
+                        System.out.println(String.valueOf(p));
+                        System.out.println(String.valueOf(q));
+                        System.exit(1);
+                    }
                 }
             }
         }
